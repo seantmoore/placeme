@@ -1,0 +1,135 @@
+{% load static %}
+<!doctype html>
+<html class="no-js" lang="">
+
+<head>
+    <meta charset="utf-8">
+    <title></title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="shortcut icon" type="image/png" href="{% static 'images/favicon.ico' %}"/>
+
+    <link rel="stylesheet" href="{% static 'css/font-awesome.min.css' %}">
+
+    <link rel="stylesheet" href="{% static 'css/normalize.css' %}">
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+
+<body>
+    <!--[if IE]>
+        <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="https://browsehappy.com/">upgrade your browser</a> to improve your experience and security.</p>
+    <![endif]-->
+
+    <!-- Add your site or application content here -->
+    <p>Place some squares or just watch the madness.</p>
+    <div id="main-wrapper">
+        <div id="loading-text">
+            <p>Loading board...</p>
+        </div>
+        <canvas id="main-board" height="600px" width="600px"></canvas>
+        <!-- Color picker widget -->
+        <table id="widget-wrapper">
+            <!-- begin color picker widget -->
+            <tr>
+                <td>
+                    <table id="color-picker" border="1">
+                        <tr>
+                            <td id="color-cell-black" class="color-cell active">
+                                <div id="color-black" class="color-selection"></div>
+                                <input type="hidden" id="black-rgb" value="0,0,0" />
+                            </td>
+                            <td id="color-cell-white" class="color-cell">
+                                <div id="color-white" class="color-selection"></div>
+                                <input type="hidden" id="white-rgb" value="255,255,255" />
+                            </td>
+                            <td id="color-cell-red" class="color-cell">
+                                <div id="color-red" class="color-selection"></div>
+                                <input type="hidden" id="red-rgb" value="255,0,0" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td id="color-cell-orange" class="color-cell">
+                                <div id="color-orange" class="color-selection"></div>
+                                <input type="hidden" id="orange-rgb" value="255,165,0" />
+                            </td>
+                            <td id="color-cell-yellow" class="color-cell">
+                                <div id="color-yellow" class="color-selection"></div>
+                                <input type="hidden" id="yellow-rgb" value="255,255,0" />
+                            </td>
+                            <td id="color-cell-green" class="color-cell">
+                                <div id="color-green" class="color-selection"></div>
+                                <input type="hidden" id="green-rgb" value="34,139,34" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <td id="color-cell-blue" class="color-cell">
+                                <div id="color-blue" class="color-selection"></div>
+                                <input type="hidden" id="blue-rgb" value="0,0,255" />
+                            </td>
+                            <td id="color-cell-indigo" class="color-cell">
+                                <div id="color-indigo" class="color-selection"></div>
+                                <input type="hidden" id="indigo-rgb" value="75,0,130" />
+                            </td>
+                            <td id="color-cell-violet" class="color-cell">
+                                <div id="color-violet" class="color-selection"></div>
+                                <input type="hidden" id="violet-rgb" value="238,130,238" />
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <!-- end color picker widget -->
+
+            <!-- begin zoom / pan widget -->
+            <tr>
+                <td>
+                    <table id="zoom-pan-widget">
+                        <tr>
+                            <td><button id="zoom-in-btn"><i class="fa fa-search-plus"></i></button></td>
+                            <td><button id="pan-up-btn"><i class="fa fa-arrow-up"></i></button></td>
+                            <td><button id="zoom-out-btn"><i class="fa fa-search-minus"></i></button></td>
+                        </tr>
+                        <tr>
+                            <td><button id="pan-left-btn"><i class="fa fa-arrow-left"></i></button></td>
+                            <td><button id="pan-reset-btn"><i class="fa fa-refresh"></i></button></td>
+                            <td><button id="pan-right-btn"><i class="fa fa-arrow-right"></i></button></td>
+                        </tr>
+                        <tr>
+                            <td></td>
+                            <td><button id="pan-down-btn"><i class="fa fa-arrow-down"></i></button></td>
+                            <td></td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            <!-- end zoom / pan widget -->
+        </table>
+    </div>
+    <input type="hidden" id="r-value" value="" />
+    <input type="hidden" id="g-value" value="" />
+    <input type="hidden" id="b-value" value="" />
+    <input type="hidden" id="board-id" value="" />
+    <input type="hidden" id="board-height" value="" />
+    <input type="hidden" id="board-width" value="" />
+    <input type="hidden" id="board-zoom" value="" />
+    <input type="hidden" id="pixel-size" value="" />
+    <input type="hidden" id="board-offset-x" value="" />
+    <input type="hidden" id="board-offset-y" value="" />
+    {% csrf_token %}
+
+    <!-- JS below here -->
+    <script src="{% static 'js/jquery.min.js' %}"></script>
+    <script src="{% static 'js/main.js' %}"></script>
+
+    <!-- Google Analytics: change UA-XXXXX-Y to be your site's ID. -->
+    <!--
+    <script>
+        window.ga = function () { ga.q.push(arguments) }; ga.q = []; ga.l = +new Date;
+        ga('create', 'UA-XXXXX-Y', 'auto'); ga('set','transport','beacon'); ga('send', 'pageview')
+    </script>
+    <script src="https://www.google-analytics.com/analytics.js" async></script>
+    -->
+</body>
+
+</html>

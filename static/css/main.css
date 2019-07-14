@@ -1,0 +1,35 @@
+body {
+    margin-left: 40px;
+}
+
+#loading-text {
+    width: 600px;
+    height: 600px;
+    float: left;
+    margin-right: 10px;
+    border: 1px solid black;
+}
+
+#main-board {
+    border: 1px solid black;
+    display: none;
+    float: left;
+    margin-right: 10px;
+}
+
+#color-picker {
+    margin-bottom: 5px;
+    border-collapse: collapse;
+    float: left;
+}
+
+.color-selection {
+    height: 40px;
+    width: 40px;
+    border: 1px solid black;
+    margin: 3px;
+}
+
+.color-cell.active {
+    background-color: darkgrey;
+}
