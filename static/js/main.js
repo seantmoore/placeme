@@ -13,8 +13,18 @@ function loadSquares(cb) {
         const pixel_size = parseInt($('#pixel-size').val()) || DEFAULT_PIXEL_SIZE;
         const offset_x = parseInt($('#board-offset-x').val()) || 0;
         const offset_y = parseInt($('#board-offset-y').val()) || 0;
+        console.log(`(offset_x, offset_y) => (${offset_x}, ${offset_y})`);
+        const px_offset_x =  Math.floor(offset_x / pixel_size),
+            px_offset_y =  Math.floor(offset_y / pixel_size),
+            max_x = parseInt(data['width']) + px_offset_x,
+            max_y = parseInt(data['height']) + px_offset_y;
         for(let i = 0; i < square_data.length; i++) {
             const sd = square_data[i];
+            /*
+            if(sd.x < px_offset_x || sd.y < px_offset_y || sd.x > max_x || sd.y > max_y) {
+                continue;
+            }
+            */
             ctx.fillStyle = `rgb(${sd.r}, ${sd.g}, ${sd.b})`;
             ctx.fillRect((sd.x*pixel_size)+offset_x, (sd.y*pixel_size)+offset_y, pixel_size, pixel_size);
         }
@@ -33,25 +43,34 @@ function clickSquare(e) {
         x: Math.floor(e.clientX - rect.left),
         y: Math.floor(e.clientY - rect.top)
     };
-    const pixel_size = parseInt($('#pixel-size').val()) || 6.0,
-        r = $('#r-value').val(), g = $('#g-value').val(), b = $('#b-value').val(),
+    const pixel_size = parseInt($('#pixel-size').val()) || 6,
+        r = $('#r-value').val(),
+        g = $('#g-value').val(),
+        b = $('#b-value').val(),
+        offset_x = parseInt($('#board-offset-x').val()) / pixel_size,
+        offset_y = parseInt($('#board-offset-y').val()) / pixel_size,
         x = Math.floor(pos.x / pixel_size),
-        y = Math.floor(pos.y / pixel_size),
-        offset_x = parseInt($('#board-offset-x').val()),
-        offset_y = parseInt($('#board-offset-y').val());
+        y = Math.floor(pos.y / pixel_size);
     const data = {
-        x: x,
-        y: y,
+        x: x - offset_x,
+        y: y - offset_y,
         r: r,
         g: g,
         b: b,
         board_id: parseInt($('#board-id').val()) || 0,
         'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
     };
+    const board_height = parseInt($('#board-height').val()),
+        board_width = parseInt($('#board-width').val());
+    if(data.x < 0 || data.y < 0 || data.x > board_width+offset_x || data.y > board_height+offset_y) {
+        return;
+    }
     console.log(data);
     // draw the square locally before submitting it to the server
     const ctx = document.getElementById('main-board').getContext('2d');
     ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+    console.log(`(x*pixel_size, y*pixel_size) => (${x*pixel_size}, ${y*pixel_size})`);
+    console.log(`(x, y) => (${x}, ${y})`);
     ctx.fillRect(x*pixel_size, y*pixel_size, pixel_size, pixel_size);
     ctx.fill();
     // now submit the square to the server
@@ -99,7 +118,10 @@ function init() {
 
 function zoomIn() {
     clearBoard();
-    const board_zoom_el = $('#board-zoom');
+    const board_zoom_el = $('#board-zoom'),
+        offset_x_el = $('#board-offset-x'),
+        offset_y_el = $('#board-offset-y'),
+        pixel_size_el = $('#pixel-size');
     let zoom = parseFloat(board_zoom_el.val()) || 1;
     if(zoom < 1) {
         zoom += 0.1;
@@ -107,14 +129,22 @@ function zoomIn() {
         zoom = Math.min(zoom + 0.2, 2.0);
     }
     board_zoom_el.val(zoom);
-    $('#pixel-size').val(Math.floor(DEFAULT_PIXEL_SIZE * zoom));
+    const dpx = Math.floor(parseInt(offset_x_el.val()) / parseInt(pixel_size_el.val())),
+        dpy = Math.floor(parseInt(offset_y_el.val()) / parseInt(pixel_size_el.val()));
+    pixel_size_el.val(Math.floor(DEFAULT_PIXEL_SIZE * zoom));
+    offset_x_el.val( parseInt(pixel_size_el.val()) * dpx );
+    offset_y_el.val( parseInt(pixel_size_el.val()) * dpy );
+    console.log(zoom + ", " + pixel_size_el.val());
     loadSquares();
     return false;
 }
 
 function zoomOut() {
     clearBoard();
-    const board_zoom_el = $('#board-zoom');
+    const board_zoom_el = $('#board-zoom'),
+        offset_x_el = $('#board-offset-x'),
+        offset_y_el = $('#board-offset-y'),
+        pixel_size_el = $('#pixel-size');
     let zoom = parseFloat(board_zoom_el.val()) || 1.0;
     if(zoom > 1) {
         zoom -= 0.2;
@@ -122,18 +152,23 @@ function zoomOut() {
         zoom = Math.max(zoom - 0.1, 0.5);
     }
     board_zoom_el.val( zoom );
-    $('#pixel-size').val(Math.floor(DEFAULT_PIXEL_SIZE * zoom));
+    const dpx = Math.floor(parseInt(offset_x_el.val()) / parseInt(pixel_size_el.val())),
+        dpy = Math.floor(parseInt(offset_y_el.val()) / parseInt(pixel_size_el.val()));
+    pixel_size_el.val(Math.floor(DEFAULT_PIXEL_SIZE * zoom));
+    offset_x_el.val( parseInt(pixel_size_el.val()) * dpx );
+    offset_y_el.val( parseInt(pixel_size_el.val()) * dpy );
+    console.log(zoom + ", " + pixel_size_el.val());
     loadSquares();
     return false;
 }
 
 function panLeft() {
     clearBoard();
-    const offset_x_el = $('#board-offset-x');
-    const offset_x = parseInt(offset_x_el.val()) || 0;
-    const pixel_size = parseInt($('#pixel-size').val()) || DEFAULT_PIXEL_SIZE;
-    const zoom = parseInt($('#board-zoom').val()) || 1.0;
-    const dx = Math.floor(10.0 / zoom) * pixel_size;
+    const offset_x_el = $('#board-offset-x'),
+        offset_x = parseInt(offset_x_el.val()) || 0,
+        pixel_size = parseInt($('#pixel-size').val()) || DEFAULT_PIXEL_SIZE,
+        zoom = parseInt($('#board-zoom').val()) || 1.0,
+        dx = Math.floor(10.0 / zoom) * pixel_size;
     console.log(`dx => ${dx}, pixel_size => ${pixel_size}`);
     offset_x_el.val(offset_x + dx);
     loadSquares();
@@ -193,6 +228,12 @@ function clearBoard() {
     const main_board = document.getElementById('main-board');
     const ctx = main_board.getContext('2d');
     ctx.clearRect(offset_x, offset_y, w*pixel_size, h*pixel_size);
+}
+
+function debug() {
+    $('.state-info').each(function(i, el) {
+        console.log(`${el.id} => ${el.value}`);
+    });
 }
 
 $(document).ready(function() {
