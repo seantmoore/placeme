@@ -107,6 +107,3 @@ venv.bak/
 dmypy.json
 
 # End of https://www.gitignore.io/api/django
-
-# JetBrains IDE stuff
-.idea/*
