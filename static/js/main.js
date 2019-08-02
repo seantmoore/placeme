@@ -1,39 +1,59 @@
+const SQUARES = {};
 const DEFAULT_PIXEL_SIZE = 6;
-function loadSquares(cb) {
-    $.getJSON('/app/board/', function(data) {
+let BOARD_IS_LOADING = false;
+function loadBoard(cb) {
+    if(BOARD_IS_LOADING) {
+        return;
+    }
+    BOARD_IS_LOADING = true;
+    const p = $.getJSON('/app/board/', function(data) {
         $('#board-id').val(data['board_id']);
         $('#board-height').val(data['height']);
         $('#board-width').val(data['width']);
         const square_data = data['square_data'];
-        const main_board = document.getElementById('main-board');
-        const off_board = document.createElement('canvas')
-        off_board.height = main_board.height;
-        off_board.width = main_board.width;
-        const ctx = off_board.getContext('2d');
-        const pixel_size = parseInt($('#pixel-size').val()) || DEFAULT_PIXEL_SIZE;
-        const offset_x = parseInt($('#board-offset-x').val()) || 0;
-        const offset_y = parseInt($('#board-offset-y').val()) || 0;
-        console.log(`(offset_x, offset_y) => (${offset_x}, ${offset_y})`);
-        const px_offset_x =  Math.floor(offset_x / pixel_size),
-            px_offset_y =  Math.floor(offset_y / pixel_size),
-            max_x = parseInt(data['width']) + px_offset_x,
-            max_y = parseInt(data['height']) + px_offset_y;
+        const max_x = parseInt(data['width']),
+            max_y = parseInt(data['height']);
         for(let i = 0; i < square_data.length; i++) {
             const sd = square_data[i];
-            /*
-            if(sd.x < px_offset_x || sd.y < px_offset_y || sd.x > max_x || sd.y > max_y) {
+            if(sd.x < 0 || sd.y < 0 || sd.x >= max_x || sd.y >= max_y) {
                 continue;
             }
-            */
-            ctx.fillStyle = `rgb(${sd.r}, ${sd.g}, ${sd.b})`;
-            ctx.fillRect((sd.x*pixel_size)+offset_x, (sd.y*pixel_size)+offset_y, pixel_size, pixel_size);
+            SQUARES[`${sd.x}_${sd.y}`] = sd;
         }
-        ctx.fill();
-        main_board.getContext('2d').drawImage(off_board, 0, 0);
-        if(typeof cb === 'function') {
-            cb();
-        }
+        drawSquares(function() {
+            if(typeof cb === 'function') {
+                cb();
+            }
+            BOARD_IS_LOADING = false;
+        });
     });
+    setTimeout(function() {
+        p.abort();
+        BOARD_IS_LOADING = false;
+    }, 30000);
+}
+
+function drawSquares(cb) {
+    const main_board = document.getElementById('main-board'),
+        off_board = document.createElement('canvas'),
+        ctx = off_board.getContext('2d'),
+        pixel_size = parseInt($('#pixel-size').val()) || DEFAULT_PIXEL_SIZE,
+        offset_x = parseInt($('#board-offset-x').val()) || 0,
+        offset_y = parseInt($('#board-offset-y').val()) || 0;
+    off_board.height = main_board.height;
+    off_board.width = main_board.width;
+    for(const key in SQUARES) {
+        if (SQUARES.hasOwnProperty(key)) {
+            const sd = SQUARES[key];
+            ctx.fillStyle = `rgb(${sd.r}, ${sd.g}, ${sd.b})`;
+            ctx.fillRect((sd.x * pixel_size) + offset_x, (sd.y * pixel_size) + offset_y, pixel_size, pixel_size);
+        }
+    }
+    ctx.fill();
+    main_board.getContext('2d').drawImage(off_board, 0, 0);
+    if(typeof cb === 'function') {
+        cb();
+    }
 }
 
 function clickSquare(e) {
@@ -62,15 +82,13 @@ function clickSquare(e) {
     };
     const board_height = parseInt($('#board-height').val()),
         board_width = parseInt($('#board-width').val());
-    if(data.x < 0 || data.y < 0 || data.x > board_width+offset_x || data.y > board_height+offset_y) {
+    if(data.x < 0 || data.y < 0 || data.x >= board_width || data.y >= board_height) {
         return;
     }
-    console.log(data);
+    SQUARES[`${data.x}_${data.y}`] = data;
     // draw the square locally before submitting it to the server
     const ctx = document.getElementById('main-board').getContext('2d');
     ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-    console.log(`(x*pixel_size, y*pixel_size) => (${x*pixel_size}, ${y*pixel_size})`);
-    console.log(`(x, y) => (${x}, ${y})`);
     ctx.fillRect(x*pixel_size, y*pixel_size, pixel_size, pixel_size);
     ctx.fill();
     // now submit the square to the server
@@ -110,7 +128,7 @@ function init() {
     $('#board-offset-y').val(0);
     const main_board = document.getElementById("main-board");
     main_board.addEventListener("click", clickSquare);
-    loadSquares(function() {
+    loadBoard(function() {
         main_board.style.display = 'inline-block';
         $('#loading-text').hide();
     });
@@ -118,39 +136,33 @@ function init() {
 
 function zoomIn() {
     clearBoard();
-    const board_zoom_el = $('#board-zoom'),
-        offset_x_el = $('#board-offset-x'),
-        offset_y_el = $('#board-offset-y'),
-        pixel_size_el = $('#pixel-size');
-    let zoom = parseFloat(board_zoom_el.val()) || 1;
+    let zoom = parseFloat($('#board-zoom').val()) || 1.0;
     if(zoom < 1) {
         zoom += 0.1;
     } else {
         zoom = Math.min(zoom + 0.2, 2.0);
     }
-    board_zoom_el.val(zoom);
-    const dpx = Math.floor(parseInt(offset_x_el.val()) / parseInt(pixel_size_el.val())),
-        dpy = Math.floor(parseInt(offset_y_el.val()) / parseInt(pixel_size_el.val()));
-    pixel_size_el.val(Math.floor(DEFAULT_PIXEL_SIZE * zoom));
-    offset_x_el.val( parseInt(pixel_size_el.val()) * dpx );
-    offset_y_el.val( parseInt(pixel_size_el.val()) * dpy );
-    console.log(zoom + ", " + pixel_size_el.val());
-    loadSquares();
+    setZoom(zoom);
     return false;
 }
 
 function zoomOut() {
     clearBoard();
-    const board_zoom_el = $('#board-zoom'),
-        offset_x_el = $('#board-offset-x'),
-        offset_y_el = $('#board-offset-y'),
-        pixel_size_el = $('#pixel-size');
-    let zoom = parseFloat(board_zoom_el.val()) || 1.0;
+    let zoom = parseFloat($('#board-zoom').val()) || 1.0;
     if(zoom > 1) {
         zoom -= 0.2;
     } else {
         zoom = Math.max(zoom - 0.1, 0.5);
     }
+    setZoom(zoom);
+    return false;
+}
+
+function setZoom(zoom) {
+    const board_zoom_el = $('#board-zoom'),
+        offset_x_el = $('#board-offset-x'),
+        offset_y_el = $('#board-offset-y'),
+        pixel_size_el = $('#pixel-size');
     board_zoom_el.val( zoom );
     const dpx = Math.floor(parseInt(offset_x_el.val()) / parseInt(pixel_size_el.val())),
         dpy = Math.floor(parseInt(offset_y_el.val()) / parseInt(pixel_size_el.val()));
@@ -158,56 +170,49 @@ function zoomOut() {
     offset_x_el.val( parseInt(pixel_size_el.val()) * dpx );
     offset_y_el.val( parseInt(pixel_size_el.val()) * dpy );
     console.log(zoom + ", " + pixel_size_el.val());
-    loadSquares();
-    return false;
+    drawSquares();
+}
+
+const UP = 1, DOWN = 2, LEFT = 3, RIGHT = 4;
+function pan(dir) {
+    clearBoard();
+    let offset_el = null;
+    if(dir === LEFT || dir === RIGHT) {
+        offset_el = $('#board-offset-x');
+    } else if(dir === UP || dir === DOWN) {
+        offset_el = $('#board-offset-y');
+    }
+    if(offset_el !== null) {
+        const offset = parseInt(offset_el.val()) || 0.0,
+            pixel_size = parseInt($('#pixel-size').val()) || DEFAULT_PIXEL_SIZE,
+            zoom = parseInt($('#board-zoom').val()) || 1.0,
+            delta = Math.floor(10.0 / zoom) * pixel_size;
+        if(dir === LEFT || dir === UP) {
+            offset_el.val(offset + delta);
+        } else if(dir === RIGHT || dir === DOWN) {
+            offset_el.val(offset - delta);
+        }
+    }
+    drawSquares();
 }
 
 function panLeft() {
-    clearBoard();
-    const offset_x_el = $('#board-offset-x'),
-        offset_x = parseInt(offset_x_el.val()) || 0,
-        pixel_size = parseInt($('#pixel-size').val()) || DEFAULT_PIXEL_SIZE,
-        zoom = parseInt($('#board-zoom').val()) || 1.0,
-        dx = Math.floor(10.0 / zoom) * pixel_size;
-    console.log(`dx => ${dx}, pixel_size => ${pixel_size}`);
-    offset_x_el.val(offset_x + dx);
-    loadSquares();
+    pan(LEFT);
     return false;
 }
 
 function panRight() {
-    clearBoard();
-    const offset_x_el = $('#board-offset-x');
-    const offset_x = parseInt(offset_x_el.val()) || 0;
-    const pixel_size = parseInt($('#pixel-size').val()) || DEFAULT_PIXEL_SIZE;
-    const zoom = parseInt($('#board-zoom').val()) || 1.0;
-    const dx = Math.floor(10.0 / zoom) * pixel_size;
-    offset_x_el.val(offset_x - dx);
-    loadSquares();
+    pan(RIGHT);
     return false;
 }
 
 function panUp() {
-    clearBoard();
-    const offset_y_el = $('#board-offset-y');
-    const offset_y = parseInt(offset_y_el.val()) || 0;
-    const pixel_size = parseInt($('#pixel-size').val()) || DEFAULT_PIXEL_SIZE;
-    const zoom = parseInt($('#board-zoom').val()) || 1.0;
-    const dy = Math.floor(10.0 / zoom) * pixel_size;
-    offset_y_el.val(offset_y + dy);
-    loadSquares();
+    pan(UP);
     return false;
 }
 
 function panDown() {
-    clearBoard();
-    const offset_y_el = $('#board-offset-y');
-    const offset_y = parseInt(offset_y_el.val()) || 0;
-    const pixel_size = parseInt($('#pixel-size').val()) || DEFAULT_PIXEL_SIZE;
-    const zoom = parseInt($('#board-zoom').val()) || 1.0;
-    const dy = Math.floor(10.0 / zoom) * pixel_size;
-    offset_y_el.val(offset_y - dy);
-    loadSquares();
+    pan(DOWN);
     return false;
 }
 
@@ -215,19 +220,15 @@ function panReset() {
     clearBoard();
     $('#board-offset-x').val(0);
     $('#board-offset-y').val(0);
-    loadSquares();
+    drawSquares();
     return false;
 }
 
 function clearBoard() {
-    const pixel_size = parseInt($('#pixel-size').val());
-    const w = parseInt($('#board-height').val());
-    const h = parseInt($('#board-width').val());
-    const offset_x = parseInt($('#board-offset-x').val());
-    const offset_y = parseInt($('#board-offset-y').val());
     const main_board = document.getElementById('main-board');
     const ctx = main_board.getContext('2d');
-    ctx.clearRect(offset_x, offset_y, w*pixel_size, h*pixel_size);
+    //ctx.clearRect(offset_x, offset_y, w*pixel_size, h*pixel_size);
+    ctx.clearRect(0,0, main_board.width, main_board.height);
 }
 
 function debug() {
@@ -240,7 +241,7 @@ $(document).ready(function() {
     // Load squares into the main board and start an infinite loop of loading
     init();
     const f = function() {
-        loadSquares(function () {
+        loadBoard(function () {
             setTimeout(f, 1000);
         });
     };

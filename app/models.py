@@ -17,3 +17,9 @@ class Square(models.Model):
     r = models.IntegerField(null=False)
     g = models.IntegerField(null=False)
     b = models.IntegerField(null=False)
+
+
+class Cooldown(models.Model):
+    create_date = models.DateTimeField(auto_now_add=True)
+    board_id = models.IntegerField(null=False)
+    ip_address = models.GenericIPAddressField(null=False)

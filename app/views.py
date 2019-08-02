@@ -1,6 +1,8 @@
 from django.http import JsonResponse
 from django.shortcuts import render
-from app.models import Square, Board
+from app.models import Square, Board, Cooldown
+from datetime import datetime, timedelta
+import pytz
 from time import sleep
 
 cache = None
@@ -13,30 +15,37 @@ def app(request):
 
 def square(request):
     if request.method == 'POST':
-        global cache
-        value_error = False
-        x, y, r, g, b, board_id = None, None, None, None, None, None
-        try:
-            x = int(request.POST.get('x', ''))
-            y = int(request.POST.get('y', ''))
-            r = int(request.POST.get('r', ''))
-            g = int(request.POST.get('g', ''))
-            b = int(request.POST.get('b', ''))
-            board_id = int(request.POST.get('board_id', ''))
-        except ValueError as _:
-            value_error = True
-        if value_error or board_id <= 0 or None in (x, y, r, g, b, board_id):
-            return JsonResponse({'message': 'Missing or invalid required parameter.'}, status=400)
-        s = Square(
-            board_id=board_id,
-            x=x,
-            y=y,
-            r=r,
-            g=g,
-            b=b
-        )
-        s.save()
-        cache['sq_{}_{}'.format(x, y)] = s
+        global cache, cache_building_in_progress
+        if not cache_building_in_progress:
+            board_id = int(request.POST.get('board_id', '-1'))
+            client_ip = _get_client_ip(request)
+            cooldowns = Cooldown.objects.filter(board_id=board_id).filter(ip_address=client_ip).order_by('-create_date')
+            if len(cooldowns) == 0 or cooldowns[0].create_date+timedelta(minutes=1) <= datetime.now(pytz.utc):
+                value_error = False
+                x, y, r, g, b = None, None, None, None, None
+                try:
+                    x = int(request.POST.get('x', ''))
+                    y = int(request.POST.get('y', ''))
+                    r = int(request.POST.get('r', ''))
+                    g = int(request.POST.get('g', ''))
+                    b = int(request.POST.get('b', ''))
+                    board_id = int(request.POST.get('board_id', ''))
+                except ValueError as _:
+                    value_error = True
+                if value_error or board_id <= 0 or None in (x, y, r, g, b, board_id):
+                    return JsonResponse({'message': 'Missing or invalid required parameter.'}, status=400)
+                s = Square(
+                    board_id=board_id,
+                    x=x,
+                    y=y,
+                    r=r,
+                    g=g,
+                    b=b
+                )
+                s.save()
+                cache['sq_{}_{}'.format(x, y)] = s
+                cooldown = Cooldown(board_id=board_id, ip_address=client_ip)
+                cooldown.save()
         return JsonResponse({'message': 'OK'}, status=200)
     return JsonResponse({}, status=501)
 
@@ -95,3 +104,13 @@ def _build_cache(b):
             except Square.DoesNotExist as _:
                 pass
     cache_building_in_progress = False
+
+
+def _get_client_ip(request):
+    # Not a great way to get the IP or authenticate, but this is just a PoC so whatever...
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
